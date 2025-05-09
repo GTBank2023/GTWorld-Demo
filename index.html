@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>XXWorld Simulation + Dynamic Modal</title>
+  <style>
+    /* —— Layout & modal styling (right column) —— */
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(to right, #f5f7fa, #c3cfe2);
+      margin: 0;
+      padding: 40px;
+      display: flex;
+      justify-content: center;
+    }
+    .container {
+      display: flex;
+      gap: 40px;
+      align-items: flex-start;
+    }
+    .left-column { flex-shrink: 0; }
+    .right-column {
+      max-width: 360px;
+      padding: 20px;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+    .right-column h2 {
+      margin-top: 0;
+      color: #333;
+    }
+    .right-column ul {
+      padding-left: 20px;
+      margin-bottom: 20px;
+    }
+    .right-column li {
+      margin-bottom: 8px;
+      line-height: 1.4;
+    }
+    .cta-button {
+      display: inline-block;
+      background: #dc4405;
+      color: white;
+      padding: 12px 20px;
+      border: none;
+      border-radius: 10px;
+      text-decoration: none;
+      font-size: 16px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    .cta-button:hover { background: #005fa3; }
+
+    /* —— YOUR ORIGINAL phone‑frame & marker CSS exactly as you had it —— */
+    .phone-frame {
+      width: 400px;
+      height: 800px;
+      border: 15px solid black;
+      border-radius: 40px;
+      position: relative;
+      overflow: hidden;
+      background-color: #333;
+    }
+    .phone-screen {
+      width: 100%;
+      height: 100%;
+      background-size: cover;
+      background-position: center;
+      cursor: pointer;
+      transition: background-image 0.5s ease-in-out;
+    }
+    .prompt {
+      position: absolute;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: rgba(255,255,255,0.8);
+      padding: 10px;
+      border-radius: 10px;
+      font-family: Arial, sans-serif;
+      font-size: 18px;
+      text-align: center;
+      z-index: 1;
+      transition: opacity 0.3s ease-in-out;
+    }
+    .fade-in { opacity: 0; animation: fadeIn 0.5s forwards; }
+    @keyframes fadeIn { to { opacity: 1; } }
+
+    .marker {
+      position: absolute;
+      width: 50px;
+      height: 50px;
+      background-color: transparent;
+      cursor: pointer;
+      border-radius: 50%;
+    }
+    /* original positions for 400px‑wide frame */
+    #marker-transfers { top: 320px; left: 25px; }
+    #marker-bills     { top: 320px; left: 125px; }
+    #marker-wallet    { top: 320px; left: 220px; }
+    #marker-merchant  { top: 320px; left: 320px; }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <!-- LEFT: your untouched simulation -->
+    <div class="left-column">
+      <div class="phone-frame">
+        <div class="phone-screen fade-in" id="phoneScreen" style="background-image: url('https://i.imgur.com/Pljb80p.png');"></div>
+        <div class="prompt fade-in" id="promptText">Press anywhere to log in</div>
+        <div id="marker-transfers" class="marker" style="display: none;"></div>
+        <div id="marker-bills"     class="marker" style="display: none;"></div>
+        <div id="marker-wallet"    class="marker" style="display: none;"></div>
+        <div id="marker-merchant"  class="marker" style="display: none;"></div>
+      </div>
+    </div>
+
+    <!-- RIGHT: dynamic instruction panel -->
+    <div class="right-column" id="instructionPanel">
+      <h2>The Initial Log In Page</h2>
+      <ul>
+        <li>Tap the screen to log in</li>
+        <li>Once you’ve entered account & password, you’ll move to the dashboard</li>
+      </ul>
+      <a href="#" class="cta-button">Download the Full App</a>
+    </div>
+  </div>
+
+  <script>
+    /* —— Your original simulation JS —— */
+    const images = [
+      'https://i.imgur.com/Pljb80p.png',
+      'https://i.imgur.com/7s7JlhU.png',
+      'https://i.imgur.com/ELtsnZr.png'
+    ];
+    const transfersScreens = [
+      'https://i.imgur.com/fFHx7Ps.jpeg',
+      'https://i.imgur.com/Ram6eVf.jpeg',
+      'https://i.imgur.com/eReyWSy.jpeg'
+    ];
+    const billsScreens = [
+      'https://i.imgur.com/PD8CYlb.jpeg',
+      'https://i.imgur.com/8zelgPb.jpeg',
+      'https://i.imgur.com/dw4ns3d.jpeg'
+    ];
+    const walletScreens = [
+      'https://i.imgur.com/l9BKuK8.jpeg',
+      'https://i.imgur.com/ZdSmj2G.jpeg',
+      'https://i.imgur.com/uEpg0XM.jpeg'
+    ];
+    const merchantScreens = [
+      'https://i.imgur.com/O0TZb6R.jpeg',
+      'https://i.imgur.com/k63TTuN.jpeg',
+      'https://i.imgur.com/ccViWNt.jpeg'
+    ];
+
+    let currentStep = 0, transfersStep = 0, billsStep = 0, walletStep = 0, merchantStep = 0;
+    let currentProcess = null;
+
+    const phoneScreen = document.getElementById('phoneScreen');
+    const promptText  = document.getElementById('promptText');
+    const transfersButton = document.getElementById('marker-transfers');
+    const billsButton     = document.getElementById('marker-bills');
+    const walletButton    = document.getElementById('marker-wallet');
+    const merchantButton  = document.getElementById('marker-merchant');
+
+    /* —— Modal content mapping —— */
+    const modalContent = {
+      0: {
+        title: "The Initial Log In Page",
+        details: [
+          "Tap the screen to log in",
+          "Once you’ve entered account & password, you’ll move to the dashboard"
+        ]
+      },
+      1: {
+        title: "Logging In",
+        details: [
+          "Preparing your dashboard…",
+          "Get ready to explore Transfers, Bills, Wallet, or Merchant"
+        ]
+      },
+      2: {
+        title: "Welcome to the Dashboard",
+        details: [
+          "Here’s what you can do:",
+          "Simulate Transfers, Bills, Wallet, or Merchant",
+          "Tap an icon to continue"
+        ]
+      },
+      transfers: {
+        title: "Under Transfers",
+        details: [
+          "Press Transfers button",
+          "Choose transfer type (another bank or within XXBank)",
+          "Select sender account",
+          "New vs. saved beneficiary",
+          "Enter amount & remarks, then confirm"
+        ]
+      },
+      bills: {
+        title: "Under Bill Payments",
+        details: [
+          "Press the Bill Payments icon",
+          "Select biller category",
+          "Enter amount & payment details",
+          "Review and complete payment"
+        ]
+      },
+      wallet: {
+        title: "Under Wallet",
+        details: [
+          "Tap Wallet to view balances",
+          "Choose between Wallet Transfer or Airtime",
+          "Enter amount & beneficiary phone",
+       "Click on soft token and a token will be sent to your registered phone number",         
+          "Confirm with soft token"
+        ]
+      },
+      merchant: {
+        title: "Under Merchant",
+        details: [
+          "Tap Merchant button",
+          "Enter Merchant ID",
+          "Select Payee FSP (Choose between Bank/MNO)",
+          "Confirm and pay"
+        ]
+      }
+    };
+
+    /* —— Helper to update the right‑column —— */
+    function updateModal(key) {
+      const panel = document.getElementById("instructionPanel");
+      const { title, details } = modalContent[key];
+      panel.innerHTML = `
+        <h2>${title}</h2>
+        <ul>${details.map(line=>`<li>${line}</li>`).join("")}</ul>
+        <a href="#" class="cta-button">Download the Full App</a>
+      `;
+    }
+
+    /* —— Hook into your simulation’s update functions —— */
+    function updateScreen() {
+      if (!currentProcess) {
+        phoneScreen.style.backgroundImage = `url(${images[currentStep]})`;
+        if (currentStep === 0) promptText.textContent = 'Press anywhere to log in';
+        else if (currentStep === 1) promptText.textContent = 'Press anywhere to proceed to the dashboard';
+        else if (currentStep === 2) {
+          promptText.textContent = 'Select Transfers, Bills, Wallet, or Merchant to continue';
+          showButtons();
+        }
+        fadePrompt();
+        updateModal(currentStep);
+      }
+    }
+
+    function updateProcessScreens(screens, step) {
+      if (step < screens.length) {
+        phoneScreen.style.backgroundImage = `url(${screens[step]})`;
+        updateModal(currentProcess);
+      } else {
+        currentProcess = null;
+        showButtons();
+        updateScreen();
+      }
+    }
+
+    function showButtons() { [transfersButton,billsButton,walletButton,merchantButton].forEach(b=>b.style.display='block'); }
+    function hideButtons() { [transfersButton,billsButton,walletButton,merchantButton].forEach(b=>b.style.display='none'); }
+    function fadePrompt() { promptText.classList.remove("fade-in"); void promptText.offsetWidth; promptText.classList.add("fade-in"); }
+
+    phoneScreen.addEventListener('click', () => {
+      if (!currentProcess) {
+        if (currentStep < 2) { currentStep++; updateScreen(); }
+      } else updateProcessScreens(
+        currentProcess==="transfers"? transfersScreens
+      : currentProcess==="bills"? billsScreens
+      : currentProcess==="wallet"? walletScreens
+      : merchantScreens,
+      currentProcess==="transfers"? transfersStep++
+      : currentProcess==="bills"? billsStep++
+      : currentProcess==="wallet"? walletStep++
+      : merchantStep++
+      );
+    });
+
+    transfersButton.addEventListener('click', () => { currentProcess="transfers"; transfersStep=0; hideButtons(); updateProcessScreens(transfersScreens, transfersStep++); });
+    billsButton    .addEventListener('click', () => { currentProcess="bills";     billsStep=0;     hideButtons(); updateProcessScreens(billsScreens,    billsStep++); });
+    walletButton   .addEventListener('click', () => { currentProcess="wallet";    walletStep=0;    hideButtons(); updateProcessScreens(walletScreens, walletStep++); });
+    merchantButton .addEventListener('click', () => { currentProcess="merchant";  merchantStep=0;  hideButtons(); updateProcessScreens(merchantScreens, merchantStep++); });
+
+    // initialize both simulation and modal
+    updateScreen();
+  </script>
+
+</body>
+</html>
